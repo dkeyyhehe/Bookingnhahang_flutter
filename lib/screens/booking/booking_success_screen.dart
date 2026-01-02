@@ -125,7 +125,7 @@ class BookingSuccessScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.pushNamedAndRemoveUntil(
                       context,
-                      AppRoutes.home,
+                      AppRoutes.userMain,
                       (route) => false,
                     );
                   },
