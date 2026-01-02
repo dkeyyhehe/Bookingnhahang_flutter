@@ -6,7 +6,12 @@ import '../../models/restaurant.dart';
 import '../../models/user.dart';
 
 class UserIntroScreen extends StatefulWidget {
-  const UserIntroScreen({super.key});
+  final VoidCallback? onNavigateToRestaurants;
+  
+  const UserIntroScreen({
+    super.key,
+    this.onNavigateToRestaurants,
+  });
 
   @override
   State<UserIntroScreen> createState() => _UserIntroScreenState();
@@ -91,7 +96,11 @@ class _UserIntroScreenState extends State<UserIntroScreen> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: () {
-                        Navigator.pushNamed(context, AppRoutes.home);
+                        if (widget.onNavigateToRestaurants != null) {
+                          widget.onNavigateToRestaurants!();
+                        } else {
+                          Navigator.pushNamed(context, AppRoutes.home);
+                        }
                       },
                       icon: const Icon(Icons.restaurant_menu),
                       label: const Text('Xem tất cả nhà hàng'),
@@ -188,7 +197,11 @@ class _UserIntroScreenState extends State<UserIntroScreen> {
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () {
-                    Navigator.pushNamed(context, AppRoutes.home);
+                    if (widget.onNavigateToRestaurants != null) {
+                      widget.onNavigateToRestaurants!();
+                    } else {
+                      Navigator.pushNamed(context, AppRoutes.home);
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
