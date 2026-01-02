@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../models/user.dart';
+import '../../providers/theme_provider.dart';
 import 'manage_restaurants_screen.dart';
 import 'manage_bookings_screen.dart';
 
@@ -96,6 +98,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ],
         ),
         actions: [
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, child) {
+              return IconButton(
+                icon: Icon(
+                  themeProvider.isDarkMode
+                      ? Icons.light_mode
+                      : Icons.dark_mode,
+                ),
+                tooltip: themeProvider.isDarkMode
+                    ? 'Chế độ sáng'
+                    : 'Chế độ tối',
+                onPressed: () {
+                  themeProvider.toggleTheme();
+                },
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Đăng xuất',
