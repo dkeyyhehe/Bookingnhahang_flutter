@@ -9,6 +9,7 @@ import '../screens/profile/profile_screen.dart';
 import '../screens/admin/admin_dashboard_screen.dart';
 import '../screens/saved/saved_restaurants_screen.dart';
 import '../screens/review/add_review_screen.dart';
+import '../screens/user/user_intro_screen.dart';
 
 class AppRoutes {
   static const splash = '/';
@@ -22,6 +23,7 @@ class AppRoutes {
   static const adminDashboard = '/admin-dashboard';
   static const savedRestaurants = '/saved-restaurants';
   static const addReview = '/add-review';
+  static const userIntro = '/user-intro';
 
   static final routes = {
     splash: (context) => const SplashScreen(),
@@ -35,5 +37,6 @@ class AppRoutes {
     adminDashboard: (context) => const AdminDashboardScreen(),
     savedRestaurants: (context) => const SavedRestaurantsScreen(),
     addReview: (context) => const AddReviewScreen(),
+    userIntro: (context) => const UserIntroScreen(),
   };
 }

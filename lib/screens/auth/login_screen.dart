@@ -42,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (user.isAdmin) {
           Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
         } else {
-          Navigator.pushReplacementNamed(context, AppRoutes.home);
+          Navigator.pushReplacementNamed(context, AppRoutes.userIntro);
         }
       }
     } catch (e) {
@@ -70,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (user.isAdmin) {
           Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
         } else {
-          Navigator.pushReplacementNamed(context, AppRoutes.home);
+          Navigator.pushReplacementNamed(context, AppRoutes.userIntro);
         }
       }
     } catch (e) {

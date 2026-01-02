@@ -157,6 +157,18 @@ class FirestoreService {
             .toList());
   }
 
+  // Get all restaurants as Future (for one-time fetch)
+  Future<List<Restaurant>> getAllRestaurants() async {
+    try {
+      final snapshot = await _firestore.collection('restaurants').get();
+      return snapshot.docs
+          .map((doc) => Restaurant.fromFirestore(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      throw Exception('Lỗi lấy danh sách nhà hàng: ${e.toString()}');
+    }
+  }
+
   // Get restaurant by ID
   Future<Restaurant?> getRestaurant(String id) async {
     try {

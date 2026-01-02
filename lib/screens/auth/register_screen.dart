@@ -48,7 +48,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (user.isAdmin) {
           Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
         } else {
-          Navigator.pushReplacementNamed(context, AppRoutes.home);
+          Navigator.pushReplacementNamed(context, AppRoutes.userIntro);
         }
       }
     } catch (e) {

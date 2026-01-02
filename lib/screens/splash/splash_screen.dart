@@ -47,7 +47,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (user.isAdmin) {
         Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
       } else {
-        Navigator.pushReplacementNamed(context, AppRoutes.home);
+        Navigator.pushReplacementNamed(context, AppRoutes.userIntro);
       }
     } else {
       // User is not logged in
