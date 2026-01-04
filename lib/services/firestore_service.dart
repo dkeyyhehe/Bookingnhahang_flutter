@@ -3,6 +3,7 @@ import '../models/user.dart';
 import '../models/restaurant.dart';
 import '../models/booking.dart';
 import '../models/review.dart';
+import '../models/notification.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -427,6 +428,64 @@ class FirestoreService {
     } catch (e) {
       // Return false on error to allow user to try
       return false;
+    }
+  }
+
+  // ========== NOTIFICATION OPERATIONS ==========
+
+  // Get notifications for a user (ordered by timestamp descending)
+  Stream<List<AppNotification>> getUserNotifications(String userId) {
+    return _firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) {
+          final notifications = snapshot.docs
+              .map((doc) => AppNotification.fromFirestore(doc))
+              .toList();
+          // Sort by timestamp descending in memory to avoid requiring composite index
+          notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          return notifications;
+        });
+  }
+
+  // Get unread notification count for a user
+  Stream<int> getUnreadNotificationCount(String userId) {
+    return _firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
+  // Mark notification as read
+  Future<void> markNotificationAsRead(String notificationId) async {
+    try {
+      await _firestore.collection('notifications').doc(notificationId).update({
+        'isRead': true,
+      });
+    } catch (e) {
+      throw Exception('Lỗi đánh dấu thông báo đã đọc: ${e.toString()}');
+    }
+  }
+
+  // Mark all notifications as read for a user
+  Future<void> markAllNotificationsAsRead(String userId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('notifications')
+          .where('userId', isEqualTo: userId)
+          .where('isRead', isEqualTo: false)
+          .get();
+
+      final batch = _firestore.batch();
+      for (var doc in snapshot.docs) {
+        batch.update(doc.reference, {'isRead': true});
+      }
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Lỗi đánh dấu tất cả thông báo đã đọc: ${e.toString()}');
     }
   }
 }

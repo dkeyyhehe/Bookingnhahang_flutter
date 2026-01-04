@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/firestore_service.dart';
+import '../../services/notification_service.dart';
 import '../../models/booking.dart';
 
 class ManageBookingsScreen extends StatelessWidget {
@@ -101,7 +102,7 @@ class ManageBookingsScreen extends StatelessWidget {
                                   onPressed: () {
                                     _updateBookingStatus(
                                       context,
-                                      booking.id,
+                                      booking,
                                       'confirmed',
                                       _firestoreService,
                                     );
@@ -118,7 +119,7 @@ class ManageBookingsScreen extends StatelessWidget {
                                   onPressed: () {
                                     _updateBookingStatus(
                                       context,
-                                      booking.id,
+                                      booking,
                                       'cancelled',
                                       _firestoreService,
                                     );
@@ -171,12 +172,34 @@ class ManageBookingsScreen extends StatelessWidget {
 
   Future<void> _updateBookingStatus(
     BuildContext context,
-    String bookingId,
+    Booking booking,
     String newStatus,
     FirestoreService firestoreService,
   ) async {
     try {
-      await firestoreService.updateBookingStatus(bookingId, newStatus);
+      // Update booking status
+      await firestoreService.updateBookingStatus(booking.id, newStatus);
+
+      // Send notification to user
+      final notificationService = NotificationService();
+      if (newStatus == 'confirmed') {
+        // Send success notification for confirmed booking
+        await notificationService.sendNotification(
+          userId: booking.userId,
+          title: 'Đặt bàn thành công! ✅',
+          body: 'Đơn đặt bàn tại ${booking.restaurantName} đã được xác nhận.',
+          type: 'success',
+        );
+      } else if (newStatus == 'cancelled') {
+        // Send error notification for cancelled booking
+        await notificationService.sendNotification(
+          userId: booking.userId,
+          title: 'Đặt bàn bị hủy ❌',
+          body: 'Rất tiếc, nhà hàng ${booking.restaurantName} không thể nhận đơn này.',
+          type: 'error',
+        );
+      }
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
