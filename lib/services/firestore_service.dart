@@ -50,7 +50,9 @@ class FirestoreService {
   }
 
   // Toggle favorite restaurant
-  Future<void> toggleFavoriteRestaurant(String uid, String restaurantId) async {
+  // CASE 1: Adding to Favorites - Check if restaurant exists in Firestore, if not create it, then add to user's favorites
+  // CASE 2: Removing from Favorites - Just remove from user's favorites, don't delete restaurant document
+  Future<void> toggleFavoriteRestaurant(String uid, Restaurant restaurant) async {
     try {
       final userDoc = await _firestore.collection('users').doc(uid).get();
       if (!userDoc.exists) {
@@ -59,16 +61,33 @@ class FirestoreService {
 
       final data = userDoc.data()!;
       final favorites = List<String>.from(data['favoriteRestaurantIds'] ?? []);
+      final restaurantId = restaurant.id;
+      final isCurrentlyFavorite = favorites.contains(restaurantId);
 
-      if (favorites.contains(restaurantId)) {
-        favorites.remove(restaurantId);
+      if (isCurrentlyFavorite) {
+        // CASE 2: Removing from Favorites (Turn OFF)
+        // Unlink User: Remove the restaurantId from user's favoriteRestaurantIds array
+        await _firestore.collection('users').doc(uid).update({
+          'favoriteRestaurantIds': FieldValue.arrayRemove([restaurantId]),
+        });
       } else {
-        favorites.add(restaurantId);
+        // CASE 1: Adding to Favorites (Turn ON)
+        // Check & Sync: Check if restaurant exists in Firestore restaurants collection
+        final restaurantDoc = await _firestore.collection('restaurants').doc(restaurantId).get();
+        
+        if (!restaurantDoc.exists) {
+          // If NO: Create/Save the full restaurant document to Firestore restaurants collection
+          await _firestore.collection('restaurants').doc(restaurantId).set(
+            restaurant.toFirestore(),
+          );
+        }
+        // If YES: Do nothing to the restaurant doc (keep existing data)
+        
+        // Link User: Add the restaurantId to user's favoriteRestaurantIds array
+        await _firestore.collection('users').doc(uid).update({
+          'favoriteRestaurantIds': FieldValue.arrayUnion([restaurantId]),
+        });
       }
-
-      await _firestore.collection('users').doc(uid).update({
-        'favoriteRestaurantIds': favorites,
-      });
     } catch (e) {
       throw Exception('Lỗi cập nhật yêu thích: ${e.toString()}');
     }

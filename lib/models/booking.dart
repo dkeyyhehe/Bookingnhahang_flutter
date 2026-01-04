@@ -5,6 +5,8 @@ class Booking {
   final String userId;
   final String restaurantId;
   final String restaurantName;
+  final String? restaurantAddress;
+  final String? restaurantImage;
   final DateTime bookingDate;
   final int numberOfGuests;
   final String status; // 'pending', 'confirmed', 'cancelled'
@@ -15,6 +17,8 @@ class Booking {
     required this.userId,
     required this.restaurantId,
     required this.restaurantName,
+    this.restaurantAddress,
+    this.restaurantImage,
     required this.bookingDate,
     required this.numberOfGuests,
     required this.status,
@@ -29,6 +33,8 @@ class Booking {
       userId: data['userId'] ?? '',
       restaurantId: data['restaurantId'] ?? '',
       restaurantName: data['restaurantName'] ?? '',
+      restaurantAddress: data['restaurantAddress'],
+      restaurantImage: data['restaurantImage'],
       bookingDate: (data['bookingDate'] as Timestamp).toDate(),
       numberOfGuests: data['numberOfGuests'] ?? 0,
       status: data['status'] ?? 'pending',
@@ -38,7 +44,7 @@ class Booking {
 
   // Convert to Firestore document
   Map<String, dynamic> toFirestore() {
-    return {
+    final map = {
       'userId': userId,
       'restaurantId': restaurantId,
       'restaurantName': restaurantName,
@@ -47,6 +53,9 @@ class Booking {
       'status': status,
       'createdAt': Timestamp.fromDate(createdAt),
     };
+    if (restaurantAddress != null) map['restaurantAddress'] = restaurantAddress!;
+    if (restaurantImage != null) map['restaurantImage'] = restaurantImage!;
+    return map;
   }
 }
 

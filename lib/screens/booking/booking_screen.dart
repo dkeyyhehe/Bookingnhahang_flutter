@@ -144,6 +144,8 @@ class _BookingScreenState extends State<BookingScreen> {
         userId: currentUser.uid,
         restaurantId: _restaurant!.id,
         restaurantName: _restaurant!.name,
+        restaurantAddress: _restaurant!.address,
+        restaurantImage: _restaurant!.imageUrl,
         bookingDate: bookingDateTime,
         numberOfGuests: _numberOfGuests,
         status: 'pending',

@@ -39,21 +39,21 @@ class _SavedRestaurantsScreenState extends State<SavedRestaurantsScreen> {
     }
   }
 
-  Future<void> _toggleFavorite(String restaurantId) async {
+  Future<void> _toggleFavorite(Restaurant restaurant) async {
     if (_currentUser == null) return;
 
     try {
       await _firestoreService.toggleFavoriteRestaurant(
         _currentUser!.uid,
-        restaurantId,
+        restaurant,
       );
       // Update local state
       if (mounted) {
         setState(() {
-          if (_favoriteIds.contains(restaurantId)) {
-            _favoriteIds.remove(restaurantId);
+          if (_favoriteIds.contains(restaurant.id)) {
+            _favoriteIds.remove(restaurant.id);
           } else {
-            _favoriteIds.add(restaurantId);
+            _favoriteIds.add(restaurant.id);
           }
         });
         // Reload user to sync
@@ -134,7 +134,7 @@ class _SavedRestaurantsScreenState extends State<SavedRestaurantsScreen> {
               return RestaurantItem(
                 restaurant: restaurant,
                 isFavorite: _favoriteIds.contains(restaurant.id),
-                onFavoriteToggle: () => _toggleFavorite(restaurant.id),
+                onFavoriteToggle: () => _toggleFavorite(restaurant),
                 onTap: () {
                   Navigator.pushNamed(
                     context,

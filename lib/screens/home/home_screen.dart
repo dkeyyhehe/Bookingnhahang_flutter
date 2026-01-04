@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
+import '../../services/osm_service.dart';
 import '../../models/restaurant.dart';
 import '../../models/user.dart';
 import '../../widgets/restaurant_item.dart';
@@ -17,6 +18,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final AuthService _authService = AuthService();
+  final OSMService _osmService = OSMService();
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounceTimer;
   String _searchQuery = '';
@@ -25,8 +27,11 @@ class _HomeScreenState extends State<HomeScreen> {
   final ValueNotifier<String> _searchQueryNotifier = ValueNotifier<String>('');
   AppUser? _currentUser;
   Set<String> _favoriteIds = {};
-  String? _selectedLocationFilter;
-  bool _filterByHighRating = false;
+  
+  // API search state
+  List<Restaurant> _apiSearchResults = [];
+  bool _isSearching = false;
+  String? _searchError;
 
   @override
   void initState() {
@@ -51,21 +56,21 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _toggleFavorite(String restaurantId) async {
+  Future<void> _toggleFavorite(Restaurant restaurant) async {
     if (_currentUser == null) return;
 
     try {
       await _firestoreService.toggleFavoriteRestaurant(
         _currentUser!.uid,
-        restaurantId,
+        restaurant,
       );
       // Update local state
       if (mounted) {
         setState(() {
-          if (_favoriteIds.contains(restaurantId)) {
-            _favoriteIds.remove(restaurantId);
+          if (_favoriteIds.contains(restaurant.id)) {
+            _favoriteIds.remove(restaurant.id);
           } else {
-            _favoriteIds.add(restaurantId);
+            _favoriteIds.add(restaurant.id);
           }
         });
         // Reload user to sync
@@ -95,18 +100,56 @@ class _HomeScreenState extends State<HomeScreen> {
       _debounceTimer!.cancel();
     }
     
-    // Update search query immediately for instant filtering
-    final currentText = _searchController.text;
-    final normalizedQuery = _normalizeText(currentText);
+    final currentText = _searchController.text.trim();
     
-    // Update state immediately to trigger UI rebuild
+    // If search is empty, clear API results and show Firestore data
+    if (currentText.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _searchQuery = '';
+          _apiSearchResults = [];
+          _isSearching = false;
+          _searchError = null;
+        });
+        _searchQueryNotifier.value = '';
+      }
+      return;
+    }
+    
+    // Set loading state
     if (mounted) {
       setState(() {
-        _searchQuery = normalizedQuery;
+        _isSearching = true;
+        _searchError = null;
       });
-      // Update notifier to trigger rebuild of filtered list widget
-      _searchQueryNotifier.value = normalizedQuery;
     }
+    
+    // Debounce API call by 500ms
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
+      if (!mounted) return;
+      
+      try {
+        final results = await _osmService.searchRestaurants(currentText);
+        if (mounted) {
+          setState(() {
+            _apiSearchResults = results;
+            _isSearching = false;
+            _searchError = null;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _apiSearchResults = [];
+            _isSearching = false;
+            _searchError = e.toString();
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Lỗi tìm kiếm: ${e.toString()}')),
+          );
+        }
+      }
+    });
   }
 
   // Remove Vietnamese diacritics for better search
@@ -207,6 +250,64 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Widget _buildAPISearchResults() {
+    if (_isSearching) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_searchError != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text('Lỗi: $_searchError'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                _onSearchChanged(); // Retry search
+              },
+              child: const Text('Thử lại'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_apiSearchResults.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.search_off, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text('Không tìm thấy nhà hàng với từ khóa "${_searchController.text}"'),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: _apiSearchResults.length,
+      itemBuilder: (context, index) {
+        final restaurant = _apiSearchResults[index];
+        return RestaurantItem(
+          restaurant: restaurant,
+          isFavorite: _favoriteIds.contains(restaurant.id),
+          onFavoriteToggle: () => _toggleFavorite(restaurant),
+          onTap: () {
+            Navigator.pushNamed(
+              context,
+              AppRoutes.detail,
+              arguments: restaurant,
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _handleLogout() async {
     final result = await showDialog<bool>(
       context: context,
@@ -294,138 +395,84 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
           ),
-          // Filter Chips
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  FilterChip(
-                    label: const Text('Đánh giá > 4⭐'),
-                    selected: _filterByHighRating,
-                    onSelected: (selected) {
-                      setState(() {
-                        _filterByHighRating = selected;
-                      });
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  FilterChip(
-                    label: const Text('Quận 1'),
-                    selected: _selectedLocationFilter == 'Quận 1',
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedLocationFilter = selected ? 'Quận 1' : null;
-                      });
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  FilterChip(
-                    label: const Text('Quận 3'),
-                    selected: _selectedLocationFilter == 'Quận 3',
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedLocationFilter = selected ? 'Quận 3' : null;
-                      });
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  FilterChip(
-                    label: const Text('Tất cả'),
-                    selected: _selectedLocationFilter == null && !_filterByHighRating,
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() {
-                          _selectedLocationFilter = null;
-                          _filterByHighRating = false;
-                        });
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
           // Restaurant List
           Expanded(
-            child: StreamBuilder<List<Restaurant>>(
-              stream: _firestoreService.getRestaurants(),
-              builder: (context, snapshot) {
-                if (_isSeeding) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+            child: _searchController.text.trim().isNotEmpty
+                ? _buildAPISearchResults()
+                : StreamBuilder<List<Restaurant>>(
+                    stream: _firestoreService.getRestaurants(),
+                    builder: (context, snapshot) {
+                      if (_isSeeding) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text('Lỗi: ${snapshot.error}'),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _seedRestaurantsIfNeeded,
-                          child: const Text('Thử lại'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                              const SizedBox(height: 16),
+                              Text('Lỗi: ${snapshot.error}'),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: _seedRestaurantsIfNeeded,
+                                child: const Text('Thử lại'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
 
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-                // Update cached restaurants when stream data changes
-                final allRestaurants = snapshot.data ?? [];
-                if (allRestaurants.isNotEmpty) {
-                  _cachedRestaurants = allRestaurants;
-                }
+                      // Update cached restaurants when stream data changes
+                      final allRestaurants = snapshot.data ?? [];
+                      if (allRestaurants.isNotEmpty) {
+                        _cachedRestaurants = allRestaurants;
+                      }
 
-                // Use cached restaurants for filtering
-                final restaurantsToFilter = _cachedRestaurants;
+                      // Use cached restaurants for filtering
+                      final restaurantsToFilter = _cachedRestaurants;
 
-                if (restaurantsToFilter.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.restaurant, size: 64, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        const Text('Chưa có nhà hàng nào'),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _seedRestaurantsIfNeeded,
-                          child: const Text('Tạo dữ liệu mẫu'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                      if (restaurantsToFilter.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.restaurant, size: 64, color: Colors.grey),
+                              const SizedBox(height: 16),
+                              const Text('Chưa có nhà hàng nào'),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: _seedRestaurantsIfNeeded,
+                                child: const Text('Tạo dữ liệu mẫu'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
 
-                // Return a widget that will rebuild when _searchQuery changes
-                // Filtering happens inside _RestaurantListWidget
-                return ValueListenableBuilder<String>(
-                  valueListenable: _searchQueryNotifier,
-                  builder: (context, currentQuery, child) {
-                    return _RestaurantListWidget(
-                      restaurants: restaurantsToFilter,
-                      searchQuery: currentQuery,
-                      searchController: _searchController,
-                      normalizeText: _normalizeText,
-                      removeDiacritics: _removeVietnameseDiacritics,
-                      favoriteIds: _favoriteIds,
-                      onFavoriteToggle: _toggleFavorite,
-                      filterByHighRating: _filterByHighRating,
-                      locationFilter: _selectedLocationFilter,
-                    );
-                  },
-                );
-              },
-            ),
+                      // Return a widget that will rebuild when _searchQuery changes
+                      // Filtering happens inside _RestaurantListWidget
+                      return ValueListenableBuilder<String>(
+                        valueListenable: _searchQueryNotifier,
+                        builder: (context, currentQuery, child) {
+                          return _RestaurantListWidget(
+                            restaurants: restaurantsToFilter,
+                            searchQuery: currentQuery,
+                            searchController: _searchController,
+                            normalizeText: _normalizeText,
+                            removeDiacritics: _removeVietnameseDiacritics,
+                            favoriteIds: _favoriteIds,
+                            onFavoriteToggle: _toggleFavorite,
+                          );
+                        },
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -441,9 +488,7 @@ class _RestaurantListWidget extends StatelessWidget {
   final String Function(String) normalizeText;
   final String Function(String) removeDiacritics;
   final Set<String> favoriteIds;
-  final Future<void> Function(String) onFavoriteToggle;
-  final bool filterByHighRating;
-  final String? locationFilter;
+  final Future<void> Function(Restaurant) onFavoriteToggle;
 
   const _RestaurantListWidget({
     required this.restaurants,
@@ -453,8 +498,6 @@ class _RestaurantListWidget extends StatelessWidget {
     required this.removeDiacritics,
     required this.favoriteIds,
     required this.onFavoriteToggle,
-    this.filterByHighRating = false,
-    this.locationFilter,
   });
 
   List<Restaurant> _filterRestaurants(List<Restaurant> restaurants, String query) {
@@ -474,18 +517,6 @@ class _RestaurantListWidget extends StatelessWidget {
           return normalizedName.contains(normalizedQuery);
         }).toList();
       }
-    }
-
-    // Apply rating filter
-    if (filterByHighRating) {
-      filtered = filtered.where((restaurant) => restaurant.rating > 4.0).toList();
-    }
-
-    // Apply location filter
-    if (locationFilter != null) {
-      filtered = filtered.where((restaurant) {
-        return restaurant.address.contains(locationFilter!);
-      }).toList();
     }
     
     return filtered;
@@ -516,7 +547,7 @@ class _RestaurantListWidget extends StatelessWidget {
         return RestaurantItem(
           restaurant: restaurant,
           isFavorite: favoriteIds.contains(restaurant.id),
-          onFavoriteToggle: () => onFavoriteToggle(restaurant.id),
+          onFavoriteToggle: () => onFavoriteToggle(restaurant),
           onTap: () {
             Navigator.pushNamed(
               context,

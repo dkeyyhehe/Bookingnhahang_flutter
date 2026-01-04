@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../../routes/app_routes.dart';
 import '../../models/restaurant.dart';
 import '../../models/review.dart';
@@ -60,7 +62,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     try {
       await _firestoreService.toggleFavoriteRestaurant(
         _currentUser!.uid,
-        restaurant.id,
+        restaurant,
       );
       if (mounted) {
         setState(() {
@@ -132,220 +134,279 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
             ),
           ),
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          restaurant.name,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Map Section - only show if restaurant has coordinates
+                if (restaurant.latitude != null && restaurant.longitude != null)
+                  Container(
+                    height: 250,
+                    margin: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
                         ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: FlutterMap(
+                        options: MapOptions(
+                          initialCenter: LatLng(
+                            restaurant.latitude!,
+                            restaurant.longitude!,
+                          ),
+                          initialZoom: 15.0,
+                          minZoom: 10.0,
+                          maxZoom: 18.0,
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            userAgentPackageName: 'com.example.baitap',
+                          ),
+                          MarkerLayer(
+                            markers: [
+                              Marker(
+                                point: LatLng(
+                                  restaurant.latitude!,
+                                  restaurant.longitude!,
+                                ),
+                                width: 40,
+                                height: 40,
+                                child: const Icon(
+                                  Icons.location_on,
+                                  color: Colors.red,
+                                  size: 40,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
+                    ),
+                  ),
+                // Restaurant Info
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Row(
                         children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 24),
-                          const SizedBox(width: 4),
-                          Text(
-                            restaurant.rating.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
+                          Expanded(
+                            child: Text(
+                              restaurant.name,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              const Icon(Icons.star, color: Colors.amber, size: 24),
+                              const SizedBox(width: 4),
+                              Text(
+                                restaurant.rating.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on, color: Colors.red),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              restaurant.address,
+                              style: const TextStyle(fontSize: 16),
                             ),
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on, color: Colors.red),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          restaurant.address,
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Mô tả',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    restaurant.description,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[700],
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-          onPressed: () {
-                        Navigator.pushNamed(
-                          context,
-                          AppRoutes.booking,
-                          arguments: restaurant,
-                        );
-          },
-                      icon: const Icon(Icons.table_restaurant),
-                      label: const Text(
-                        'Đặt bàn',
-                        style: TextStyle(fontSize: 18),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  // Reviews Section
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
+                      const SizedBox(height: 24),
                       const Text(
-                        'Đánh giá',
+                        'Mô tả',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      if (_currentUser != null && !_hasReviewed)
-                        TextButton.icon(
-                          onPressed: () async {
-                            final result = await Navigator.pushNamed(
+                      const SizedBox(height: 8),
+                      Text(
+                        restaurant.description,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[700],
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pushNamed(
                               context,
-                              AppRoutes.addReview,
+                              AppRoutes.booking,
                               arguments: restaurant,
                             );
-                            if (result == true && mounted) {
-                              // Reload to update hasReviewed status
-                              await _loadUserAndFavoriteStatus();
-                            }
                           },
-                          icon: const Icon(Icons.edit),
-                          label: const Text('Viết đánh giá'),
+                          icon: const Icon(Icons.table_restaurant),
+                          label: const Text(
+                            'Đặt bàn',
+                            style: TextStyle(fontSize: 18),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  // Reviews List
-                  StreamBuilder<List<Review>>(
-                    stream: _firestoreService.getRestaurantReviews(restaurant.id),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(16),
-                            child: CircularProgressIndicator(),
-                          ),
-                        );
-                      }
-
-                      if (snapshot.hasError) {
-                        return Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text(
-                            'Lỗi tải đánh giá: ${snapshot.error}',
-                            style: TextStyle(color: Colors.red[700]),
-                          ),
-                        );
-                      }
-
-                      final reviews = snapshot.data ?? [];
-
-                      if (reviews.isEmpty) {
-                        return Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            children: [
-                              Icon(Icons.rate_review, size: 48, color: Colors.grey[400]),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Chưa có đánh giá nào',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              if (_currentUser != null && !_hasReviewed) ...[
-                                const SizedBox(height: 16),
-                                ElevatedButton.icon(
-                                  onPressed: () async {
-                                    final result = await Navigator.pushNamed(
-                                      context,
-                                      AppRoutes.addReview,
-                                      arguments: restaurant,
-                                    );
-                                    if (result == true && mounted) {
-                                      await _loadUserAndFavoriteStatus();
-                                    }
-                                  },
-                                  icon: const Icon(Icons.edit),
-                                  label: const Text('Viết đánh giá đầu tiên'),
-        ),
-                              ],
-                            ],
-                          ),
-                        );
-                      }
-
-                      return Column(
+                      ),
+                      const SizedBox(height: 32),
+                      // Reviews Section
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Average rating display
-                          Card(
-                            color: Colors.blue[50],
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.star, color: Colors.amber, size: 32),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    restaurant.rating.toStringAsFixed(1),
-                                    style: const TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '(${reviews.length} đánh giá)',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.grey[700],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          const Text(
+                            'Đánh giá',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          // Reviews list
-                          ...reviews.map((review) => ReviewItem(review: review)),
+                          if (_currentUser != null && !_hasReviewed)
+                            TextButton.icon(
+                              onPressed: () async {
+                                final result = await Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.addReview,
+                                  arguments: restaurant,
+                                );
+                                if (result == true && mounted) {
+                                  // Reload to update hasReviewed status
+                                  await _loadUserAndFavoriteStatus();
+                                }
+                              },
+                              icon: const Icon(Icons.edit),
+                              label: const Text('Viết đánh giá'),
+                            ),
                         ],
-                      );
-                    },
+                      ),
+                      const SizedBox(height: 16),
+                      // Reviews List
+                      StreamBuilder<List<Review>>(
+                        stream: _firestoreService.getRestaurantReviews(restaurant.id),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(16),
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+                          }
+
+                          if (snapshot.hasError) {
+                            return Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Text(
+                                'Lỗi tải đánh giá: ${snapshot.error}',
+                                style: TextStyle(color: Colors.red[700]),
+                              ),
+                            );
+                          }
+
+                          final reviews = snapshot.data ?? [];
+
+                          if (reviews.isEmpty) {
+                            return Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.rate_review, size: 48, color: Colors.grey[400]),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Chưa có đánh giá nào',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  if (_currentUser != null && !_hasReviewed) ...[
+                                    const SizedBox(height: 16),
+                                    ElevatedButton.icon(
+                                      onPressed: () async {
+                                        final result = await Navigator.pushNamed(
+                                          context,
+                                          AppRoutes.addReview,
+                                          arguments: restaurant,
+                                        );
+                                        if (result == true && mounted) {
+                                          await _loadUserAndFavoriteStatus();
+                                        }
+                                      },
+                                      icon: const Icon(Icons.edit),
+                                      label: const Text('Viết đánh giá đầu tiên'),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            );
+                          }
+
+                          return Column(
+                            children: [
+                              // Average rating display
+                              Card(
+                                color: Colors.blue[50],
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.star, color: Colors.amber, size: 32),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        restaurant.rating.toStringAsFixed(1),
+                                        style: const TextStyle(
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '(${reviews.length} đánh giá)',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              // Reviews list
+                              ...reviews.map((review) => ReviewItem(review: review)),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
