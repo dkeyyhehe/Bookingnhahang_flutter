@@ -197,13 +197,13 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () {
+          onPressed: () {
                         Navigator.pushNamed(
                           context,
                           AppRoutes.booking,
                           arguments: restaurant,
                         );
-                      },
+          },
                       icon: const Icon(Icons.table_restaurant),
                       label: const Text(
                         'Đặt bàn',
@@ -299,7 +299,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                                   },
                                   icon: const Icon(Icons.edit),
                                   label: const Text('Viết đánh giá đầu tiên'),
-                                ),
+        ),
                               ],
                             ],
                           ),

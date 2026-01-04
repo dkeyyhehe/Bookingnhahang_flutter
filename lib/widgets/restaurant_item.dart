@@ -23,16 +23,16 @@ class RestaurantItem extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
             // Image with Favorite Icon
             Stack(
               children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(12),
-                  ),
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(12),
+            ),
                   child: restaurant.imageUrl.startsWith('http')
                       ? Image.network(
                           restaurant.imageUrl,
@@ -50,9 +50,9 @@ class RestaurantItem extends StatelessWidget {
                         )
                       : Image.asset(
                           restaurant.imageUrl,
-                          height: 150,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
+              height: 150,
+              width: double.infinity,
+              fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
                               height: 150,
@@ -95,12 +95,12 @@ class RestaurantItem extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    restaurant.name,
+              restaurant.name,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
-                  ),
+            ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
@@ -121,8 +121,8 @@ class RestaurantItem extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Row(
-                    children: [
-                      const Icon(Icons.star, color: Colors.amber, size: 18),
+              children: [
+                const Icon(Icons.star, color: Colors.amber, size: 18),
                       const SizedBox(width: 4),
                       Text(
                         restaurant.rating.toStringAsFixed(1),
@@ -131,12 +131,12 @@ class RestaurantItem extends StatelessWidget {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ],
-                  ),
+              ],
+            ),
                 ],
               ),
-            ),
-          ],
+          ),
+        ],
         ),
       ),
     );

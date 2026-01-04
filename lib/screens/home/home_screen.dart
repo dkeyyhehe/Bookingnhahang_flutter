@@ -90,62 +90,101 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onSearchChanged() {
-    // Cancel previous timer
-    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    // Cancel previous timer if exists
+    if (_debounceTimer?.isActive ?? false) {
+      _debounceTimer!.cancel();
+    }
     
     // Update search query immediately for instant filtering
     final currentText = _searchController.text;
-    final normalizedQuery = _removeVietnameseDiacritics(
-      currentText.toLowerCase().trim(),
-    );
+    final normalizedQuery = _normalizeText(currentText);
     
-    if (mounted && _searchQuery != normalizedQuery) {
+    // Update state immediately to trigger UI rebuild
+    if (mounted) {
       setState(() {
         _searchQuery = normalizedQuery;
       });
-      // Update notifier to trigger rebuild of filtered list
+      // Update notifier to trigger rebuild of filtered list widget
       _searchQueryNotifier.value = normalizedQuery;
     }
   }
 
   // Remove Vietnamese diacritics for better search
+  // Comprehensive mapping of Vietnamese characters to their non-diacritic equivalents
   String _removeVietnameseDiacritics(String str) {
-    const vietnamese = 'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ';
-    const english = 'aaaaaaaaaaaaaaaaaeeeeeeeeeeiiiiioooooooooooooooouuuuuuuuuuyyyyyyd';
+    // Map Vietnamese characters to their base equivalents
+    const Map<String, String> diacriticsMap = {
+      // a variants
+      'à': 'a', 'á': 'a', 'ạ': 'a', 'ả': 'a', 'ã': 'a',
+      'À': 'A', 'Á': 'A', 'Ạ': 'A', 'Ả': 'A', 'Ã': 'A',
+      // â variants
+      'â': 'a', 'ầ': 'a', 'ấ': 'a', 'ậ': 'a', 'ẩ': 'a', 'ẫ': 'a',
+      'Â': 'A', 'Ầ': 'A', 'Ấ': 'A', 'Ậ': 'A', 'Ẩ': 'A', 'Ẫ': 'A',
+      // ă variants
+      'ă': 'a', 'ằ': 'a', 'ắ': 'a', 'ặ': 'a', 'ẳ': 'a', 'ẵ': 'a',
+      'Ă': 'A', 'Ằ': 'A', 'Ắ': 'A', 'Ặ': 'A', 'Ẳ': 'A', 'Ẵ': 'A',
+      // e variants
+      'è': 'e', 'é': 'e', 'ẹ': 'e', 'ẻ': 'e', 'ẽ': 'e',
+      'È': 'E', 'É': 'E', 'Ẹ': 'E', 'Ẻ': 'E', 'Ẽ': 'E',
+      // ê variants
+      'ê': 'e', 'ề': 'e', 'ế': 'e', 'ệ': 'e', 'ể': 'e', 'ễ': 'e',
+      'Ê': 'E', 'Ề': 'E', 'Ế': 'E', 'Ệ': 'E', 'Ể': 'E', 'Ễ': 'E',
+      // i variants
+      'ì': 'i', 'í': 'i', 'ị': 'i', 'ỉ': 'i', 'ĩ': 'i',
+      'Ì': 'I', 'Í': 'I', 'Ị': 'I', 'Ỉ': 'I', 'Ĩ': 'I',
+      // o variants
+      'ò': 'o', 'ó': 'o', 'ọ': 'o', 'ỏ': 'o', 'õ': 'o',
+      'Ò': 'O', 'Ó': 'O', 'Ọ': 'O', 'Ỏ': 'O', 'Õ': 'O',
+      // ô variants
+      'ô': 'o', 'ồ': 'o', 'ố': 'o', 'ộ': 'o', 'ổ': 'o', 'ỗ': 'o',
+      'Ô': 'O', 'Ồ': 'O', 'Ố': 'O', 'Ộ': 'O', 'Ổ': 'O', 'Ỗ': 'O',
+      // ơ variants
+      'ơ': 'o', 'ờ': 'o', 'ớ': 'o', 'ợ': 'o', 'ở': 'o', 'ỡ': 'o',
+      'Ơ': 'O', 'Ờ': 'O', 'Ớ': 'O', 'Ợ': 'O', 'Ở': 'O', 'Ỡ': 'O',
+      // u variants
+      'ù': 'u', 'ú': 'u', 'ụ': 'u', 'ủ': 'u', 'ũ': 'u',
+      'Ù': 'U', 'Ú': 'U', 'Ụ': 'U', 'Ủ': 'U', 'Ũ': 'U',
+      // ư variants
+      'ư': 'u', 'ừ': 'u', 'ứ': 'u', 'ự': 'u', 'ử': 'u', 'ữ': 'u',
+      'Ư': 'U', 'Ừ': 'U', 'Ứ': 'U', 'Ự': 'U', 'Ử': 'U', 'Ữ': 'U',
+      // y variants
+      'ỳ': 'y', 'ý': 'y', 'ỵ': 'y', 'ỷ': 'y', 'ỹ': 'y',
+      'Ỳ': 'Y', 'Ý': 'Y', 'Ỵ': 'Y', 'Ỷ': 'Y', 'Ỹ': 'Y',
+      // đ
+      'đ': 'd', 'Đ': 'D',
+    };
     
     String result = str;
-    for (int i = 0; i < vietnamese.length; i++) {
-      result = result.replaceAll(vietnamese[i], english[i]);
-      result = result.replaceAll(vietnamese[i].toUpperCase(), english[i].toUpperCase());
-    }
+    diacriticsMap.forEach((vietnamese, english) {
+      result = result.replaceAll(vietnamese, english);
+    });
     return result;
   }
 
-  // Normalize text for comparison
+  // Normalize text for comparison - converts to lowercase and removes diacritics
   String _normalizeText(String text) {
-    return _removeVietnameseDiacritics(text.toLowerCase());
+    if (text.isEmpty) return '';
+    return _removeVietnameseDiacritics(text.toLowerCase().trim());
   }
 
+  // Legacy method - filtering is now done in _RestaurantListWidget
+  // Keeping for backward compatibility, but updated to match new requirements
   List<Restaurant> _filterRestaurants(List<Restaurant> restaurants, String query) {
     if (query.isEmpty) {
       return restaurants;
     }
     
+    // Normalize the entire search query (do NOT split by spaces)
     final normalizedQuery = _normalizeText(query);
     if (normalizedQuery.isEmpty) {
       return restaurants;
     }
     
+    // Strict substring match: entire query must appear as consecutive string in restaurant name only
     final filtered = restaurants.where((restaurant) {
       final normalizedName = _normalizeText(restaurant.name);
-      final normalizedAddress = _normalizeText(restaurant.address);
-      final normalizedDescription = _normalizeText(restaurant.description);
-      
-      final matches = normalizedName.contains(normalizedQuery) ||
-          normalizedAddress.contains(normalizedQuery) ||
-          normalizedDescription.contains(normalizedQuery);
-      
-      return matches;
+      // Check only restaurant name, not address or description
+      return normalizedName.contains(normalizedQuery);
     }).toList();
     
     return filtered;
@@ -421,18 +460,18 @@ class _RestaurantListWidget extends StatelessWidget {
   List<Restaurant> _filterRestaurants(List<Restaurant> restaurants, String query) {
     List<Restaurant> filtered = restaurants;
 
-    // Apply search query filter
+    // Apply search query filter - strict substring match on restaurant name only
     if (query.isNotEmpty) {
+      // Normalize the entire search query (do NOT split by spaces)
       final normalizedQuery = normalizeText(query);
       if (normalizedQuery.isNotEmpty) {
         filtered = filtered.where((restaurant) {
+          // Normalize restaurant name only (not address or description)
           final normalizedName = normalizeText(restaurant.name);
-          final normalizedAddress = normalizeText(restaurant.address);
-          final normalizedDescription = normalizeText(restaurant.description);
           
-          return normalizedName.contains(normalizedQuery) ||
-              normalizedAddress.contains(normalizedQuery) ||
-              normalizedDescription.contains(normalizedQuery);
+          // Strict substring match: entire query must appear as consecutive string in name
+          // Example: "bun bo" should match "Bún Bò Huế" (normalized: "bun bo" in "bun bo hue")
+          return normalizedName.contains(normalizedQuery);
         }).toList();
       }
     }
